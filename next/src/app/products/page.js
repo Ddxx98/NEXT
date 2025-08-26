@@ -1,5 +1,10 @@
 import Link from "next/link";
 
+export const metadata = {
+  title: "This is Homepage",
+  description: "Explore our wide range of products.",
+};
+
 export default async function Products() {
   const product = await fetch("https://dummyjson.com/products", { cache: "no-store" });
   const products = await product.json();

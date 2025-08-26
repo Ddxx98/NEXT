@@ -1,5 +1,16 @@
 import Image from "next/image";
 
+export const generateMetadata = async ({ params }) => {
+  const { id } = params;
+  const product = await fetch(`https://dummyjson.com/products/${id}`, { cache: "no-store" });
+  const productData = await product.json();
+
+  return {
+    title: productData.title,
+    description: productData.description,
+  };
+};
+
 export default async function ProductDetails({ params }) {
   const { id } = await params;
   const product = await fetch(`https://dummyjson.com/products/${id}`, { cache: "no-store" });
