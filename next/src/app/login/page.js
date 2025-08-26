@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useRouter } from "next/navigation"; // App Router
+import { useRouter } from "next/navigation";
+import { useSession, signIn } from "next-auth/react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,7 +15,6 @@ export default function LoginPage() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((s) => ({ ...s, [name]: value }));
-    // clear field-level error as user types
     setErrors((s) => ({ ...s, [name]: undefined }));
     setServerError("");
   };
@@ -34,7 +34,10 @@ export default function LoginPage() {
     return err;
   };
 
-  const isValid = useMemo(() => Object.keys(validate(formData)).length === 0, [formData]);
+  const isValid = useMemo(
+    () => Object.keys(validate(formData)).length === 0,
+    [formData]
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -51,29 +54,26 @@ export default function LoginPage() {
       const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include", // ensure cookies (if using httpOnly session)
+        credentials: "include",
         body: JSON.stringify(formData),
       });
 
-      // If API returns JSON with { error } on failure, handle accordingly
       if (!res.ok) {
         let message = "Login failed";
         try {
           const text = await res.text();
-          // attempt to parse JSON; fallback to raw text
           const parsed = JSON.parse(text);
           message = parsed?.error || message;
-        } catch {
-          // ignore JSON parse errors
-        }
+        } catch {}
         setServerError(message);
         return;
       }
 
-      // success
-      // Optionally read tokens from headers/cookies here
-      // redirect to protected page
-      router.replace("/products");
+      // Honor ?next=... from the URL; default to /products
+      const params = new URLSearchParams(window.location.search);
+      const next = params.get("next") || "/products";
+      router.replace(next);
+      router.refresh();
     } catch (err) {
       setServerError("Network error. Please try again.");
     } finally {
@@ -81,9 +81,15 @@ export default function LoginPage() {
     }
   };
 
-  // minimal inline styling per earlier preference
   const styles = {
-    page: { maxWidth: 420, margin: "4rem auto", padding: "2rem 1.5rem", border: "1px solid #e5e7eb", borderRadius: 12, background: "#fff" },
+    page: {
+      maxWidth: 420,
+      margin: "4rem auto",
+      padding: "2rem 1.5rem",
+      border: "1px solid #e5e7eb",
+      borderRadius: 12,
+      background: "#fff",
+    },
     title: { margin: 0, marginBottom: "0.5rem", fontSize: "1.5rem", fontWeight: 700 },
     subtitle: { margin: 0, marginBottom: "1rem", color: "#6b7280", fontSize: "0.95rem" },
     form: { display: "grid", gap: "0.85rem" },
@@ -97,7 +103,14 @@ export default function LoginPage() {
       transition: "border-color 150ms ease, box-shadow 150ms ease",
     }),
     error: { color: "#b91c1c", fontSize: "0.85rem", marginTop: "-0.25rem" },
-    serverError: { color: "#b91c1c", background: "#fee2e2", border: "1px solid #fecaca", padding: "0.5rem 0.75rem", borderRadius: 8, fontSize: "0.9rem" },
+    serverError: {
+      color: "#b91c1c",
+      background: "#fee2e2",
+      border: "1px solid #fecaca",
+      padding: "0.5rem 0.75rem",
+      borderRadius: 8,
+      fontSize: "0.9rem",
+    },
     button: (disabled) => ({
       marginTop: "0.5rem",
       padding: "0.7rem 0.9rem",
@@ -116,7 +129,11 @@ export default function LoginPage() {
       <h1 style={styles.title}>Login</h1>
       <p style={styles.subtitle}>Access the dashboard and manage products.</p>
 
-      {serverError ? <div role="alert" aria-live="assertive" style={styles.serverError}>{serverError}</div> : null}
+      {serverError ? (
+        <div role="alert" aria-live="assertive" style={styles.serverError}>
+          {serverError}
+        </div>
+      ) : null}
 
       <form onSubmit={handleSubmit} style={styles.form} noValidate>
         <label style={styles.label}>
@@ -161,10 +178,17 @@ export default function LoginPage() {
           ) : null}
         </label>
 
-        <button type="submit" disabled={submitting || !isValid} style={styles.button(submitting || !isValid)}>
+        <button
+          type="submit"
+          disabled={submitting || !isValid}
+          style={styles.button(submitting || !isValid)}
+        >
           {submitting ? "Logging in..." : "Login"}
         </button>
       </form>
+      <div>
+        <button onClick={() => signIn("github")}>Sign in with GitHub</button>
+      </div>
     </div>
   );
 }

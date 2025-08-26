@@ -1,20 +1,29 @@
-import { SignJWT, jwtVerify } from 'jose'
+// app/lib/auth.js
+import { SignJWT, jwtVerify } from "jose";
 
-const SECRET_KEY = 'Deekshith'
+const secret = new TextEncoder().encode(process.env.JWT_SECRET || "default_secret");
 
-export const SignToken = async (user) => {
-  return await new SignJWT(user)
-    .setProtectedHeader({ alg: 'HS256' })
-    .setExpiration('1h')
-    .sign(SECRET_KEY)
+export async function SignToken(user) {
+  const payload = {
+    email: user.email,
+    role: user.role || "user",
+  };
+
+  return await new SignJWT(payload)
+    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+    .setIssuedAt()
+    .setExpirationTime("1h")
+    .sign(secret);
 }
 
-export const VerifyToken = async (token) => {
-    try {
-        const { payload } = await jwtVerify(token, SECRET_KEY)
-        return payload
-    } catch (error) {
-        console.error('Token verification failed:', error)
-        return null;
-    }
+export async function VerifyToken(token) {
+  try {
+    const { payload } = await jwtVerify(token, secret, {
+      algorithms: ["HS256"],
+      clockTolerance: 5,
+    });
+    return payload;
+  } catch (error) {
+    return null;
+  }
 }
